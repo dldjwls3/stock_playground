@@ -1,3 +1,6 @@
 .idea
 .python-version
+data/*
+lightning_logs/*
+**__pycache__**
 
