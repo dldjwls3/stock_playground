@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset
-from data.index_component import kospi200
+from data.kospi200_metadata import _2018_01_02
 from pykrx import stock
 import time
 import pandas as pd
@@ -17,6 +17,7 @@ class KOSPI200Dataset(Dataset):
 
     @classmethod
     def metadata(cls):
+        kospi200 = _2018_01_02
         codes = list(map(lambda code: '%06d' % code, kospi200.keys()))
         names = {}
         for k, v in kospi200.items():
@@ -24,9 +25,9 @@ class KOSPI200Dataset(Dataset):
         return codes, names
 
     # TODO
-    # kospi200 구성 종목을 원하는 시간 대의 구성 종목으로 설정할 수 있도록 파라미터 추가
+    # kospi 구성 종목을 원하는 시간 대의 구성 종목으로 설정할 수 있도록 파라미터 추가
     @classmethod
-    def download_data(cls, save_dir='./data/kospi200'):
+    def download_data(cls, save_dir='./data/kospi'):
         os.makedirs(save_dir, exist_ok=True)
 
         codes, names = cls.metadata()
@@ -36,7 +37,7 @@ class KOSPI200Dataset(Dataset):
             time.sleep(1)
 
     @classmethod
-    def load_data(cls, save_dir='./data/kospi200'):
+    def load_data(cls, save_dir='./data/kospi'):
         codes, names = cls.metadata()
         data = {}
         for code in codes:
