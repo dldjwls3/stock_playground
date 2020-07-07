@@ -12,26 +12,39 @@ batch_size = 512
 
 
 class Baseline(LightningModule):
-    def __init__(self):
+    def __init__(self, activation='sigmoid', hidden_layer=1, hidden_feature=10, output_normalize='softmax'):
         super().__init__()
+        self.save_hyperparameters()
+
         self.adjacency = nn.Parameter(torch.rand(200, 200) + torch.eye(200), True)
-        self.gc1 = GraphConvolution(5, 10)
-        # self.gc2 = GraphConvolution(10, 10)
-        self.gc3 = GraphConvolution(10, 5)
-        self.gc4 = GraphConvolution(5, 1)
+        layers = [GraphConvolution(5, hidden_feature)]
+        for i in range(hidden_layer):
+            layers.append(GraphConvolution(hidden_feature, hidden_feature))
+        layers.append(GraphConvolution(hidden_feature, 1))
+        self.layers = nn.ModuleList(layers)
+
+    def activation_function(self, x):
+        if self.hparams.activation == 'sigmoid':
+            return torch.sigmoid(x)
+        elif self.hparams.activation == 'tanh':
+            return torch.tanh(x)
+
+    def output_normalize_function(self, x):
+        if self.hparams.output_normalize == 'softmax':
+            return F.softmax(x, dim=1)
+        elif self.hparams.output_normalize == 'ratio':
+            return x / x.sum(dim=1, keepdim=True)
 
     def forward(self, x):
         batch_size, adjacency_matrix_length, num_feature = x.shape
-        x = F.sigmoid(self.gc1(x, self.adjacency))
-        # x = F.sigmoid(self.gc2(x, self.adjacency))
-        x = F.sigmoid(self.gc3(x, self.adjacency))
-        x = self.gc4(x, self.adjacency)
-        # print(self.adjacency)
+
+        for layer in self.layers[:-1]:
+            x = layer(x, self.adjacency)
+            x = self.activation_function(x)
+        x = self.layers[-1](x, self.adjacency)
         x = x.reshape(batch_size, adjacency_matrix_length)
-        # print(x[0])
-        softmax = F.softmax(x, dim=1)
-        # print(softmax[0])
-        return softmax
+        output = self.output_normalize_function(x)
+        return output
 
     def configure_optimizers(self):
         return Adam(self.parameters(), lr=1e-3)
@@ -42,9 +55,9 @@ class Baseline(LightningModule):
 
     def _share_step(self, batch, batch_idx):
         x, y = batch
-        softmax = self(x)
+        output = self(x)
         profit = y[:, :, 3] / (y[:, :, 0] + 1e-8)
-        loss = -torch.mean(torch.log(torch.sum(softmax * profit, dim=1)))
+        loss = -torch.mean(torch.log(torch.sum(output * profit, dim=1)))
         return loss
 
     def train_dataloader(self) -> DataLoader:
@@ -67,7 +80,7 @@ class Baseline(LightningModule):
 
     def validation_epoch_end(self, outputs):
         avg_loss = -torch.stack([x['loss'] for x in outputs]).mean()
-        logs = {'profit': torch.exp(avg_loss)}
+        logs = {'profit': torch.exp(avg_loss), 'val_loss': avg_loss}
         return {'log': logs}
 
     # 테스트
@@ -77,9 +90,9 @@ class Baseline(LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        softmax = self(x)
+        output = self(x)
         profit = y[:, :, 3] / (y[:, :, 0] + 1e-8)
-        profit = torch.log(torch.sum(softmax * profit, dim=1))
+        profit = torch.log(torch.sum(output * profit, dim=1))
         accumulator = 0
         for i, v in enumerate(profit):
             accumulator = accumulator + v
