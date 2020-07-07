@@ -12,7 +12,7 @@ batch_size = 512
 
 
 class Baseline(LightningModule):
-    def __init__(self, activation='sigmoid', hidden_layer=1, hidden_feature=10, output_normalize='softmax'):
+    def __init__(self, activation='sigmoid', hidden_layer=10, hidden_feature=10, output_normalize='softmax'):
         super().__init__()
         self.save_hyperparameters()
 
@@ -22,6 +22,7 @@ class Baseline(LightningModule):
             layers.append(GraphConvolution(hidden_feature, hidden_feature))
         layers.append(GraphConvolution(hidden_feature, 1))
         self.layers = nn.ModuleList(layers)
+        self.batch_norms = nn.ModuleList([nn.BatchNorm1d(200) for i in range(hidden_layer - 1)])
 
     def activation_function(self, x):
         if self.hparams.activation == 'sigmoid':
@@ -38,9 +39,11 @@ class Baseline(LightningModule):
     def forward(self, x):
         batch_size, adjacency_matrix_length, num_feature = x.shape
 
-        for layer in self.layers[:-1]:
+        for layer, batch_norm in zip(self.layers[:-1], self.batch_norms):
             x = layer(x, self.adjacency)
+            x = batch_norm(x)
             x = self.activation_function(x)
+
         x = self.layers[-1](x, self.adjacency)
         x = x.reshape(batch_size, adjacency_matrix_length)
         output = self.output_normalize_function(x)
