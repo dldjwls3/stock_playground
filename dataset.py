@@ -14,6 +14,7 @@ class KOSPI200Dataset(Dataset):
     train_length = 2000
     val_length = 500
     test_length = 500
+    sequence_length = 1
 
     @classmethod
     def metadata(cls):
@@ -59,13 +60,12 @@ class KOSPI200Dataset(Dataset):
             cls.data[code][cls.data[code][:, 4] <= 0] = 0
 
     @classmethod
-    def set_data_split(cls, train_length, val_length, test_length):
+    def setup(cls, train_length, val_length, test_length, sequence_length=1):
         cls.train_length = train_length
         cls.val_length = val_length
         cls.test_length = test_length
+        cls.sequence_length = sequence_length
 
-    # TODO
-    # 일단 train/val/test 2000/500/500 으로 나눔
     def __init__(self, mode='train'):
         super().__init__()
         self.mode = mode
@@ -73,22 +73,25 @@ class KOSPI200Dataset(Dataset):
     def __getitem__(self, index):
         adj_index = None
         if self.mode == 'train':
-            adj_index = -(self.train_length + self.val_length + self.test_length) + index - 1
+            adj_index = -(self.train_length + self.val_length + self.test_length) + index - self.sequence_length
         if self.mode == 'val':
-            adj_index = -(self.val_length + self.test_length) + index - 1
+            adj_index = -(self.val_length + self.test_length) + index - self.sequence_length
         if self.mode == 'test':
-            adj_index = -self.test_length + index - 1
+            adj_index = -self.test_length + index - self.sequence_length
 
         codes, names = self.metadata()
         x = []
         y = []
         for code in codes:
-            if self.data[code][adj_index][0] <= 0:
-                x_price = self.data[code][adj_index][0:4]
-                x_volume = self.data[code][adj_index][4:5]
-            else:
-                x_price = self.data[code][adj_index][0:4] / self.data[code][adj_index][0]
-                x_volume = self.data[code][adj_index][4:5]
+            sequence = []
+            for i in range(self.sequence_length):
+                if self.data[code][adj_index - i][0] <= 0:
+                    x_price = self.data[code][adj_index - i][0:4]
+                    x_volume = self.data[code][adj_index - i][4:5]
+                else:
+                    x_price = self.data[code][adj_index - i][0:4] / self.data[code][adj_index - i][0]
+                    x_volume = self.data[code][adj_index - i][4:5]
+                sequence.append(np.concatenate([x_price, x_volume]))
 
             if self.data[code][adj_index + 1][0] <= 0:
                 y_price = self.data[code][adj_index + 1][0:4]
@@ -97,7 +100,7 @@ class KOSPI200Dataset(Dataset):
                 y_price = self.data[code][adj_index + 1][0:4] / self.data[code][adj_index + 1][0]
                 y_volume = self.data[code][adj_index + 1][4:5]
 
-            x.append(np.concatenate([x_price, x_volume]))
+            x.append(np.stack(sequence, axis=0))
             y.append(np.concatenate([y_price, y_volume]))
 
         return np.stack(x, axis=0), np.stack(y, axis=0)
