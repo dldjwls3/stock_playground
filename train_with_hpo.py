@@ -4,8 +4,6 @@ from comet_ml import Optimizer
 from pytorch_lightning.logging import CometLogger
 from dataset import KOSPI200Dataset
 
-seed_everything(1)
-
 # @hydra.main(config_path='./hydra/config.yaml')
 # def parse_config(cfg: DictConfig):
 #     print(cfg.pretty())
@@ -37,6 +35,8 @@ if __name__ == '__main__':
         project_name=f'stock-gcn-experiment-sequences-{train_length}days'
     )
     for experiment in opt.get_experiments():
+        seed = 1
+        seed_everything(seed)
 
         hidden_layer = experiment.get_parameter('hidden_layer')
         hidden_feature = experiment.get_parameter('hidden_feature')
@@ -59,6 +59,7 @@ if __name__ == '__main__':
         )
 
         model = Baseline(
+            seed=seed,
             sequence_length=sequence_length,
             num_feature=5,
             hidden_layer=hidden_layer,

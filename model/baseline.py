@@ -12,7 +12,7 @@ batch_size = 512
 
 
 class Baseline(LightningModule):
-    def __init__(self, sequence_length, num_feature, activation='sigmoid', hidden_layer=10, hidden_feature=10, output_normalize='softmax'):
+    def __init__(self, sequence_length, num_feature, seed, activation='sigmoid', hidden_layer=10, hidden_feature=10, output_normalize='softmax'):
         super().__init__()
         self.save_hyperparameters()
 
