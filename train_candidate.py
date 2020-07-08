@@ -10,7 +10,7 @@ val_length = 30
 test_length = 585
 
 
-@hydra.main(config_path='./hydra/candidate_3.yaml')
+@hydra.main(config_path='./hydra/candidate_4.yaml')
 def main(cfg: DictConfig):
     for i in range(100):
         seed = i + 1000
