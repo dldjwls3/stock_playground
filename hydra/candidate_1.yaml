@@ -1,0 +1,6 @@
+#300days: 1.006561, 500days: 1.0029, 1000days: 1.003
+params:
+  - sequence_length: 9
+  - hidden_layer: 6
+  - hidden_feature: 12
+  - activation: 'tanh'

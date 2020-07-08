@@ -6,6 +6,7 @@ import pandas as pd
 from os import path
 import os
 import numpy as np
+from hydra import utils
 
 
 class KOSPI200Dataset(Dataset):
@@ -29,6 +30,7 @@ class KOSPI200Dataset(Dataset):
     # kospi 구성 종목을 원하는 시간 대의 구성 종목으로 설정할 수 있도록 파라미터 추가
     @classmethod
     def download_data(cls, save_dir='./data/kospi'):
+        save_dir = path.join(utils.get_original_cwd(), save_dir)
         os.makedirs(save_dir, exist_ok=True)
 
         codes, names = cls.metadata()
@@ -39,6 +41,7 @@ class KOSPI200Dataset(Dataset):
 
     @classmethod
     def load_data(cls, save_dir='./data/kospi'):
+        save_dir = path.join(utils.get_original_cwd(), save_dir)
         codes, names = cls.metadata()
         data = {}
         for code in codes:

@@ -1,0 +1,6 @@
+#300days: 1.0042 500days: 1.00438, 1000days: 1.004
+params:
+  - sequence_length: 10
+  - hidden_layer: 5
+  - hidden_feature: 12
+  - activation: 'sigmoid'

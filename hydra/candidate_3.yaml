@@ -1,0 +1,6 @@
+#300days: 1.0073
+params:
+  - sequence_length: 8
+  - hidden_layer: 3
+  - hidden_feature: 12
+  - activation: 'sigmoid'
