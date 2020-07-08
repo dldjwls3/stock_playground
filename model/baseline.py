@@ -90,7 +90,7 @@ class Baseline(LightningModule):
 
     # 테스트
     def test_dataloader(self):
-        test_dataset = KOSPI200Dataset(mode='test')
+        test_dataset = KOSPI200Dataset(mode='val') # validation 에서의 일 수익률을 확인하고 싶어
         return DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     def test_step(self, batch, batch_idx):
