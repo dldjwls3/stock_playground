@@ -2,22 +2,22 @@ from pytorch_lightning import Trainer, seed_everything
 from model.baseline import Baseline
 from pytorch_lightning.logging import CometLogger
 from dataset import KOSPI200Dataset
+import hydra
+from omegaconf import DictConfig
 
-# @hydra.main(config_path='./hydra/config.yaml')
-# def parse_config(cfg: DictConfig):
-#     print(cfg.pretty())
-#
-seed = 11
-train_length = 300
-val_length = 30
-test_length = 585
-sequence_length = 9
 
-hidden_layer = 6
-hidden_feature = 12
-activation = 'tanh'
+@hydra.main()
+def main(cfg: DictConfig):
+    seed = 1
+    train_length = 500
+    val_length = 30
+    test_length = 585
 
-if __name__ == '__main__':
+    sequence_length = 9
+    hidden_layer = 4
+    hidden_feature = 1
+    activation = 'sigmoid'
+
     seed_everything(seed)
     KOSPI200Dataset.setup(
         train_length=train_length,
@@ -45,3 +45,7 @@ if __name__ == '__main__':
     trainer.fit(model)
 
     # trainer.test(model)
+
+
+if __name__ == '__main__':
+    main()

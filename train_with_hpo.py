@@ -3,11 +3,8 @@ from model.baseline import Baseline
 from comet_ml import Optimizer
 from pytorch_lightning.logging import CometLogger
 from dataset import KOSPI200Dataset
-
-# @hydra.main(config_path='./hydra/config.yaml')
-# def parse_config(cfg: DictConfig):
-#     print(cfg.pretty())
-#
+import hydra
+from omegaconf import DictConfig
 
 config = {
     'algorithm': 'bayes',
@@ -25,10 +22,12 @@ config = {
     }
 }
 
-train_length = 500
-val_length = 30
-test_length = 585
-if __name__ == '__main__':
+@hydra.main()
+def main(cfg: DictConfig):
+    train_length = 500
+    val_length = 30
+    test_length = 585
+
     opt = Optimizer(
         config,
         api_key='SWhvV0XPkHV8tPdU8Nv67EXxU',
@@ -70,3 +69,7 @@ if __name__ == '__main__':
         trainer.fit(model)
 
     # trainer.test(model)
+
+
+if __name__ == '__main__':
+    main()
