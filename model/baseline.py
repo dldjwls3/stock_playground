@@ -41,7 +41,7 @@ class Baseline(LightningModule):
             return x / x.sum(dim=1, keepdim=True)
 
     def forward(self, x):
-        batch_size, adjacency_matrix_length, num_feature, sequence_length = x.shape
+        batch_size, adjacency_matrix_length, sequence_length, num_feature = x.shape
         x = x.reshape(batch_size, adjacency_matrix_length, -1)
 
         for layer, batch_norm in zip(self.layers[:-1], self.batch_norms):
