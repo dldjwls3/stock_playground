@@ -26,6 +26,11 @@ class KOSPI200Dataset(Dataset):
             names['%06d' % k] = v
         return codes, names
 
+    @classmethod
+    def name_list(cls):
+        codes, names = cls.metadata()
+        return map(lambda code: names[code], codes)
+
     # TODO
     # kospi 구성 종목을 원하는 시간 대의 구성 종목으로 설정할 수 있도록 파라미터 추가
     @classmethod
@@ -91,13 +96,18 @@ class KOSPI200Dataset(Dataset):
                 x_element = self.data[code][adj_index - i].reshape(-1, 1)
                 sequence.append(x_element)
             sequence = np.concatenate(sequence, axis=1)
-            sequence[0] = sequence[0] / (sequence[3][-1] + 1e-8)
-            sequence[1] = sequence[1] / (sequence[3][-1] + 1e-8)
-            sequence[2] = sequence[2] / (sequence[3][-1] + 1e-8)
-            sequence[3] = sequence[3] / (sequence[3][-1] + 1e-8)
-            sequence[4] = sequence[4] / (sequence[4][-1] + 1e-8)
+            sequence[0] = sequence[0] / (sequence[3][0] + 1e-8)
+            sequence[1] = sequence[1] / (sequence[3][0] + 1e-8)
+            sequence[2] = sequence[2] / (sequence[3][0] + 1e-8)
+            sequence[3] = sequence[3] / (sequence[3][0] + 1e-8)
+            sequence[4] = sequence[4] / (sequence[4][0] + 1e-8)
+
+            if sequence[4][0] == 0:
+                sequence = sequence * 0
 
             y_element = self.data[code][adj_index + 1]
+            if y_element[4] == 0:
+                y_element = y_element * 0
 
             x.append(sequence)
             y.append(y_element)
