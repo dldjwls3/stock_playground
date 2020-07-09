@@ -7,6 +7,9 @@ from torch import nn
 import torch.nn.functional as F
 import torch
 from layer import GraphConvolution
+import matplotlib.pyplot as plt
+import numpy as np
+from tools import fig2img
 
 batch_size = 512
 
@@ -58,7 +61,7 @@ class Baseline(LightningModule):
         KOSPI200Dataset.load_data()
         KOSPI200Dataset.process_data()
 
-    def _share_step(self, batch, batch_idx):
+    def calculate_loss(self, batch, batch_idx):
         x, y = batch
         output = self(x)
         profit = y[:, :, 3] / (y[:, :, 0] + 1e-8)
@@ -70,7 +73,7 @@ class Baseline(LightningModule):
         return DataLoader(train_dataset, num_workers=4, batch_size=batch_size, shuffle=True)
 
     def training_step(self, batch, batch_idx):
-        loss = self._share_step(batch, batch_idx)
+        loss = self.calculate_loss(batch, batch_idx)
         logs = {'loss': loss}
         return {'loss': loss, 'log': logs}
 
@@ -80,7 +83,7 @@ class Baseline(LightningModule):
         return DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
     def validation_step(self, batch, batch_idx):
-        loss = self._share_step(batch, batch_idx)
+        loss = self.calculate_loss(batch, batch_idx)
         return {'loss': loss}
 
     def validation_epoch_end(self, outputs):
@@ -96,11 +99,35 @@ class Baseline(LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
         output = self(x)
-        profit = y[:, :, 3] / (y[:, :, 0] + 1e-8)
-        profit = torch.log(torch.sum(output * profit * 0.997, dim=1))  # 수수료&거래세&유관기관 => 수수료 0.3%
+        profit = y[:, :, 3] / (y[:, :, 0] + 1e-7)
+
         accumulator = 0
-        for i, v in enumerate(profit):
+        for i in range(len(output)):
+            output_element = output[i]
+            return_rate_element = profit[i]
+            profit_element = output_element * return_rate_element * 0.997
+            v = torch.log(torch.sum(profit_element, dim=0))  # 수수료&거래세&유관기관 => 수수료 0.3%
             accumulator = accumulator + v
+
+            index = np.arange(len(output_element))
+            codes, _ = KOSPI200Dataset.metadata()
+
+            fig = plt.figure()
+            plt.hist(index, weights=output_element.cpu(), bins=len(output_element), color='blue')
+            pil = fig2img(fig)
+            plt.close(fig)
+            self.logger.experiment.log_image(pil, name=f'{"%02d" % (i + 1)}_daily_decision', overwrite=True, image_scale=2.0)
+            fig = plt.figure()
+            plt.hist(index, weights=return_rate_element.cpu(), bins=len(return_rate_element), color='green')
+            pil = fig2img(fig)
+            plt.close(fig)
+            self.logger.experiment.log_image(pil, name=f'{"%02d" % (i + 1)}_return_rate_decision', overwrite=True, image_scale=2.0)
+            fig = plt.figure()
+            plt.hist(index, weights=profit_element.cpu(), bins=len(profit_element), color='red')
+            pil = fig2img(fig)
+            plt.close(fig)
+            self.logger.experiment.log_image(pil, name=f'{"%02d" % (i + 1)}_profit_result', overwrite=True, image_scale=2.0)
+
             self.logger.log_metrics({'test_daily_profit': torch.exp(v)}, i + 1)
             self.logger.log_metrics({'test_accumulate_profit': torch.exp(accumulator)}, i + 1)
 
