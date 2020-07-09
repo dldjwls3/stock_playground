@@ -88,23 +88,19 @@ class KOSPI200Dataset(Dataset):
         for code in codes:
             sequence = []
             for i in range(self.sequence_length):
-                if self.data[code][adj_index - i][0] <= 0:
-                    x_price = self.data[code][adj_index - i][0:4]
-                    x_volume = self.data[code][adj_index - i][4:5]
-                else:
-                    x_price = self.data[code][adj_index - i][0:4] / self.data[code][adj_index - i][0]
-                    x_volume = self.data[code][adj_index - i][4:5]
-                sequence.append(np.concatenate([x_price, x_volume]))
+                x_element = self.data[code][adj_index - i].reshape(-1, 1)
+                sequence.append(x_element)
+            sequence = np.concatenate(sequence, axis=1)
+            sequence[0] = sequence[0] / (sequence[3][-1] + 1e-8)
+            sequence[1] = sequence[1] / (sequence[3][-1] + 1e-8)
+            sequence[2] = sequence[2] / (sequence[3][-1] + 1e-8)
+            sequence[3] = sequence[3] / (sequence[3][-1] + 1e-8)
+            sequence[4] = sequence[4] / (sequence[4][-1] + 1e-8)
 
-            if self.data[code][adj_index + 1][0] <= 0:
-                y_price = self.data[code][adj_index + 1][0:4]
-                y_volume = self.data[code][adj_index + 1][4:5]
-            else:
-                y_price = self.data[code][adj_index + 1][0:4] / self.data[code][adj_index + 1][0]
-                y_volume = self.data[code][adj_index + 1][4:5]
+            y_element = self.data[code][adj_index + 1]
 
-            x.append(np.stack(sequence, axis=0))
-            y.append(np.concatenate([y_price, y_volume]))
+            x.append(sequence)
+            y.append(y_element)
 
         return np.stack(x, axis=0), np.stack(y, axis=0)
 

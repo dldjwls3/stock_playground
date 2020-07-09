@@ -38,7 +38,7 @@ class Baseline(LightningModule):
             return x / x.sum(dim=1, keepdim=True)
 
     def forward(self, x):
-        batch_size, adjacency_matrix_length, sequence_length, num_feature = x.shape
+        batch_size, adjacency_matrix_length, num_feature, sequence_length = x.shape
         x = x.reshape(batch_size, adjacency_matrix_length, -1)
 
         for layer, batch_norm in zip(self.layers[:-1], self.batch_norms):
@@ -62,7 +62,7 @@ class Baseline(LightningModule):
         x, y = batch
         output = self(x)
         profit = y[:, :, 3] / (y[:, :, 0] + 1e-8)
-        loss = -torch.mean(torch.log(torch.sum(output * profit, dim=1)))
+        loss = -torch.mean(torch.log(torch.sum(output * profit * 0.997, dim=1)))  # 수수료&거래세&유관기관 => 수수료 0.3%
         return loss
 
     def train_dataloader(self) -> DataLoader:
@@ -85,7 +85,7 @@ class Baseline(LightningModule):
 
     def validation_epoch_end(self, outputs):
         avg_loss = -torch.stack([x['loss'] for x in outputs]).mean()
-        logs = {'profit': torch.exp(avg_loss), 'val_loss': avg_loss}
+        logs = {'profit': torch.exp(avg_loss)}
         return {'log': logs}
 
     # 테스트
@@ -97,7 +97,7 @@ class Baseline(LightningModule):
         x, y = batch
         output = self(x)
         profit = y[:, :, 3] / (y[:, :, 0] + 1e-8)
-        profit = torch.log(torch.sum(output * profit, dim=1))
+        profit = torch.log(torch.sum(output * profit * 0.997, dim=1))  # 수수료&거래세&유관기관 => 수수료 0.3%
         accumulator = 0
         for i, v in enumerate(profit):
             accumulator = accumulator + v
