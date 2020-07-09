@@ -93,16 +93,16 @@ class KOSPI200Dataset(Dataset):
         for code in codes:
             sequence = []
             for i in range(self.sequence_length):
-                x_element = self.data[code][adj_index - i].reshape(-1, 1)
+                x_element = self.data[code][adj_index - self.sequence_length + i + 1]
                 sequence.append(x_element)
-            sequence = np.concatenate(sequence, axis=1)
-            sequence[0] = sequence[0] / (sequence[3][0] + 1e-8)
-            sequence[1] = sequence[1] / (sequence[3][0] + 1e-8)
-            sequence[2] = sequence[2] / (sequence[3][0] + 1e-8)
-            sequence[3] = sequence[3] / (sequence[3][0] + 1e-8)
-            sequence[4] = sequence[4] / (sequence[4][0] + 1e-8)
+            sequence = np.stack(sequence)
+            sequence[:, 0] = sequence[:, 0] / (sequence[-1, 3] + 1e-8)
+            sequence[:, 1] = sequence[:, 1] / (sequence[-1, 3] + 1e-8)
+            sequence[:, 2] = sequence[:, 2] / (sequence[-1, 3] + 1e-8)
+            sequence[:, 3] = sequence[:, 3] / (sequence[-1, 3] + 1e-8)
+            sequence[:, 4] = sequence[:, 4] / (sequence[-1, 4] + 1e-8)
 
-            if sequence[4][0] == 0:
+            if sequence[-1, 4] == 0:
                 sequence = sequence * 0
 
             y_element = self.data[code][adj_index + 1]
