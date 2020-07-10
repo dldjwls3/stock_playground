@@ -81,11 +81,11 @@ class KOSPI200Dataset(Dataset):
     def __getitem__(self, index):
         adj_index = None
         if self.mode == 'train':
-            adj_index = -(self.train_length + self.val_length + self.test_length) + index - self.sequence_length
+            adj_index = -(self.train_length + self.val_length + self.test_length) + index
         if self.mode == 'val':
-            adj_index = -(self.val_length + self.test_length) + index - self.sequence_length
+            adj_index = -(self.val_length + self.test_length) + index
         if self.mode == 'test':
-            adj_index = -self.test_length + index - self.sequence_length
+            adj_index = -self.test_length + index
 
         codes, names = self.metadata()
         x = []
