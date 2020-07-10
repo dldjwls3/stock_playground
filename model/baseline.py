@@ -10,6 +10,8 @@ from layer import GraphConvolution
 import matplotlib.pyplot as plt
 import numpy as np
 from tools import fig2img
+from os import path
+import hydra.utils
 
 batch_size = 512
 
@@ -64,16 +66,20 @@ class Baseline(LightningModule):
     def calculate_loss(self, batch, batch_idx):
         x, y = batch
         output = self(x)
-        profit = y[:, :, 3] / (y[:, :, 0] + 1e-8)
-        loss = -torch.mean(torch.log(torch.sum(output * profit * 0.997, dim=1)))  # 수수료&거래세&유관기관 => 수수료 0.3%
-        return loss
+        return_rate = y[:, :, 3] / (y[:, :, 0] + 1e-8)
+        return_rate[return_rate == 0] = 1  # 거래정지/상장폐지 등으로 거래 불가능한 것들 투자결정으로 loss 오염되지 않게 보정
+        profit = output * return_rate * 0.997
+        profit = torch.mean(torch.log(torch.sum(profit, dim=1)))  # 수수료&거래세&유관기관 => 수수료 0.3%
+        value, indices = torch.max(output, dim=1)
+        loss = - profit + 0.8 * torch.mean(value)
+        return loss, torch.exp(profit)
 
     def train_dataloader(self) -> DataLoader:
         train_dataset = KOSPI200Dataset()
         return DataLoader(train_dataset, num_workers=4, batch_size=batch_size, shuffle=True)
 
     def training_step(self, batch, batch_idx):
-        loss = self.calculate_loss(batch, batch_idx)
+        loss, profit = self.calculate_loss(batch, batch_idx)
         logs = {'loss': loss}
         return {'loss': loss, 'log': logs}
 
@@ -83,12 +89,13 @@ class Baseline(LightningModule):
         return DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
     def validation_step(self, batch, batch_idx):
-        loss = self.calculate_loss(batch, batch_idx)
-        return {'loss': loss}
+        loss, profit = self.calculate_loss(batch, batch_idx)
+        return {'loss': loss, 'profit': profit}
 
     def validation_epoch_end(self, outputs):
-        avg_loss = -torch.stack([x['loss'] for x in outputs]).mean()
-        logs = {'profit': torch.exp(avg_loss)}
+        profit = torch.stack([x['profit'] for x in outputs])
+        profit = torch.exp(torch.log(profit).mean())
+        logs = {'profit': profit}
         return {'log': logs}
 
     # 테스트
@@ -99,43 +106,37 @@ class Baseline(LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
         output = self(x)
-        profit = y[:, :, 3] / (y[:, :, 0] + 1e-7)
+        return_rate = y[:, :, 3] / (y[:, :, 0] + 1e-7)
 
         accumulator = 0
         for i in range(len(output)):
             output_element = output[i]
-            return_rate_element = profit[i]
+            self.visualize_to_comet(output_element, 'blue', f'{"%02d" % (i + 1)}_daily_decision')
+            return_rate_element = return_rate[i]
+            self.visualize_to_comet(return_rate_element, 'green', f'{"%02d" % (i + 1)}_return_rate')
+            return_rate_element[return_rate_element == 0] = 1  # 거래정지/상장폐지 등으로 거래 불가능한 것들 투자결정으로 loss 오염되지 않게 보정
             profit_element = output_element * return_rate_element * 0.997
+            self.visualize_to_comet(profit_element - output_element, 'red', f'{"%02d" % (i + 1)}_profit_result')
+
             v = torch.log(torch.sum(profit_element, dim=0))  # 수수료&거래세&유관기관 => 수수료 0.3%
             accumulator = accumulator + v
-
-            index = np.arange(len(output_element))
-            codes, _ = KOSPI200Dataset.metadata()
-
-            fig = plt.figure()
-            plt.hist(index, weights=output_element.cpu(), bins=len(output_element), color='blue')
-            pil = fig2img(fig)
-            plt.close(fig)
-            self.logger.experiment.log_image(pil, name=f'{"%02d" % (i + 1)}_daily_decision', overwrite=True, image_scale=2.0)
-            fig = plt.figure()
-            plt.hist(index, weights=return_rate_element.cpu(), bins=len(return_rate_element), color='green')
-            pil = fig2img(fig)
-            plt.close(fig)
-            self.logger.experiment.log_image(pil, name=f'{"%02d" % (i + 1)}_return_rate_decision', overwrite=True, image_scale=2.0)
-            fig = plt.figure()
-            plt.hist(index, weights=profit_element.cpu(), bins=len(profit_element), color='red')
-            pil = fig2img(fig)
-            plt.close(fig)
-            self.logger.experiment.log_image(pil, name=f'{"%02d" % (i + 1)}_profit_result', overwrite=True, image_scale=2.0)
 
             self.logger.log_metrics({'test_daily_profit': torch.exp(v)}, i + 1)
             self.logger.log_metrics({'test_accumulate_profit': torch.exp(accumulator)}, i + 1)
 
-        loss = -torch.mean(profit)
-        return {'loss': loss}
+        return None
 
     def test_epoch_end(self, outputs):
-        avg_loss = -torch.stack([x['loss'] for x in outputs]).mean()
-        logs = {'profit': torch.exp(avg_loss)}
-        return {'log': logs}
+        # avg_loss = -torch.stack([x['loss'] for x in outputs]).mean()
+        # logs = {'profit': torch.exp(avg_loss)}
+        # return {'log': logs}
+        return None
+
+    def visualize_to_comet(self, weights, color, name):
+        index = np.arange(len(weights))
+        fig = plt.figure()
+        plt.hist(index, weights=weights.cpu(), bins=len(weights), color=color)
+        pil = fig2img(fig)
+        plt.close(fig)
+        self.logger.experiment.log_image(pil, name=name, overwrite=True, image_scale=2.0)
 
